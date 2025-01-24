@@ -77,6 +77,7 @@ class Lexer:
         if len(lexeme) > 256:
             self.line = self.line[len(lexeme):]
             self.column_number += len(lexeme)
+
             return Token(self.BadToken, lexeme, self.line_number, self.column_number - len(lexeme))
 
         token_type = lexeme.upper() if KeyWord.is_token(lexeme) else self.IdentifierToken
@@ -84,6 +85,18 @@ class Lexer:
 
         self.line = self.line[len(lexeme):]
         self.column_number += len(lexeme)
+
+        self.line = self.line.replace("\n", "")
+
+        if self.line and not re.match(r"[ \t\(\)\+\-\*/;,=\[\]{}<>'.:]", self.line[0]) and not re.match(
+                r"^[a-zA-Z0-9_]*$", self.line):
+            self.column_number -= len(lexeme)
+
+            bad_token = Token(self.BadToken, lexeme + self.line, self.line_number, self.column_number)
+            self.line = ""
+
+            return bad_token
+
         return token
 
     def parse_number_literal(self, match):
@@ -129,7 +142,6 @@ class Lexer:
                 return Token(self.BadToken, temp, start_line_number, start_column_number)
             temp += "\n" + self.line.replace("\n", "")
 
-        return None
 
     def skip_whitespaces(self):
         whitespaces = len(self.line) - len(self.line.lstrip())
