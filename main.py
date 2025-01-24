@@ -1,22 +1,21 @@
-import os
 import re
 import sys
 
 from token import Token, Operator, KeyWord
 
+IDENTIFIER_PATTERN = r"^[a-zA-Z_][a-zA-Z0-9_]*"
+STRING_PATTERN = r"^'(.*?)'"
+NUMBER_PATTERN = r"^\d+(\.)?(\d+)?([eE][+-]?\d+)?"
+SEPARATORS_PATTERN = r"^[^ \t\(\)\+\-\*/;,=\[\]{}<>'.:]*"
+
+STRING_TOKEN = "STRING"
+FLOAT_TOKEN = "FLOAT"
+INTEGER_TOKEN = "INTEGER"
+IDENTIFIER_TOKEN = "IDENTIFIER"
+BAD_TOKEN = "BAD"
+
 
 class Lexer:
-    IdentifierPattern = r"^[a-zA-Z_][a-zA-Z0-9_]*"
-    StringPattern = r"^'(.*?)'"
-    NumberPattern = r"^\d+(\.)?(\d+)?([eE][+-]?\d+)?"
-    SeparatorsPattern = r"^[^ \t\(\)\+\-\*/;,=\[\]{}<>'.:]*"
-
-    StringToken = "STRING"
-    FloatToken = "FLOAT"
-    IntegerToken = "INTEGER"
-    IdentifierToken = "IDENTIFIER"
-    BadToken = "BAD"
-
     def __init__(self, file_path):
         self.file_path = file_path
         self.reader = open(file_path, "r", encoding="utf-8")
@@ -50,11 +49,11 @@ class Lexer:
             if self.line.startswith("'"):
                 return self.parse_string_literal()
 
-            number_match = re.match(self.NumberPattern, self.line)
+            number_match = re.match(NUMBER_PATTERN, self.line)
             if number_match:
                 return self.parse_number_literal(number_match)
 
-            identifier_match = re.match(self.IdentifierPattern, self.line)
+            identifier_match = re.match(IDENTIFIER_TOKEN, self.line)
             if identifier_match:
                 return self.parse_identifier(identifier_match.group())
 
@@ -65,12 +64,12 @@ class Lexer:
                     return Token(token_type, oper, self.line_number, self.column_number - len(oper))
 
             if not re.match(r"^[a-zA-Z0-9_]*$", self.line):
-                bad_match = re.match(self.SeparatorsPattern, self.line)
+                bad_match = re.match(SEPARATORS_PATTERN, self.line)
                 if bad_match:
                     bad_lexeme = bad_match.group()
                     self.line = self.line[len(bad_lexeme):]
                     self.column_number += len(bad_lexeme)
-                    return Token(self.BadToken, bad_lexeme, self.line_number, self.column_number - len(bad_lexeme))
+                    return Token(BAD_TOKEN, bad_lexeme, self.line_number, self.column_number - len(bad_lexeme))
         return None
 
     def parse_identifier(self, lexeme):
@@ -78,12 +77,12 @@ class Lexer:
             self.line = self.line[len(lexeme):]
             self.column_number += len(lexeme)
 
-            return Token(self.BadToken, lexeme, self.line_number, self.column_number - len(lexeme))
+            return Token(BAD_TOKEN, lexeme, self.line_number, self.column_number - len(lexeme))
 
         if KeyWord.is_token(lexeme):
             token_type = lexeme.upper()
         else:
-            token_type = self.IdentifierToken
+            token_type = IDENTIFIER_TOKEN
         token = Token(token_type, lexeme, self.line_number, self.column_number)
 
         self.line = self.line[len(lexeme):]
@@ -94,7 +93,7 @@ class Lexer:
                 r"^[a-zA-Z0-9_]*$", self.line):
             self.column_number -= len(lexeme)
 
-            bad_token = Token(self.BadToken, lexeme + self.line, self.line_number, self.column_number)
+            bad_token = Token(BAD_TOKEN, lexeme + self.line, self.line_number, self.column_number)
             self.line = ""
 
             return bad_token
@@ -108,18 +107,19 @@ class Lexer:
             self.line = self.line[len(lexeme):]
             self.column_number += len(lexeme)
 
-            return Token(self.BadToken, lexeme, self.line_number, self.column_number - len(lexeme))
+            return Token(BAD_TOKEN, lexeme, self.line_number, self.column_number - len(lexeme))
 
-        if len(self.line) > len(lexeme) and not re.match(r"[ \t\n\(\)\+\-\*/;,=\[\]{}<>'.:0-9]", self.line[len(lexeme)]):
+        if len(self.line) > len(lexeme) and not re.match(r"[ \t\n\(\)\+\-\*/;,=\[\]{}<>'.:0-9]",
+                                                         self.line[len(lexeme)]):
             bad_match = re.match(r"^[a-zA-Z0-9_]*", self.line)
 
-            bad_token = Token(self.BadToken, self.line, self.line_number, self.column_number)
+            bad_token = Token(BAD_TOKEN, self.line, self.line_number, self.column_number)
             self.line = self.line[len(bad_match.group()):]
             self.column_number += len(bad_match.group())
 
             return bad_token
 
-        token_type = self.FloatToken if '.' in lexeme or 'e' in lexeme.lower() else self.IntegerToken
+        token_type = FLOAT_TOKEN if '.' in lexeme or 'e' in lexeme.lower() else INTEGER_TOKEN
 
         self.line = self.line[len(lexeme):]
         self.column_number += len(lexeme)
@@ -127,16 +127,16 @@ class Lexer:
         return Token(token_type, lexeme, self.line_number, self.column_number - len(lexeme))
 
     def parse_string_literal(self):
-        match = re.match(self.StringPattern, self.line)
+        match = re.match(STRING_PATTERN, self.line)
         if match:
             lexeme = match.group()
             self.line = self.line[len(lexeme):]
             self.column_number += len(lexeme)
-            return Token(self.StringToken, lexeme, self.line_number, self.column_number - len(lexeme))
+            return Token(STRING_TOKEN, lexeme, self.line_number, self.column_number - len(lexeme))
 
         lexeme = self.line.replace("\n", "")
         self.line = ""
-        return Token(self.BadToken, lexeme, self.line_number, self.column_number)
+        return Token(BAD_TOKEN, lexeme, self.line_number, self.column_number)
 
     def parse_block_comment(self):
         temp = self.line.replace("\n", "")
@@ -153,9 +153,8 @@ class Lexer:
             self.read_next_line()
             if self.is_eof:
                 self.line = ""
-                return Token(self.BadToken, temp, start_line_number, start_column_number)
+                return Token(BAD_TOKEN, temp, start_line_number, start_column_number)
             temp += "\n" + self.line.replace("\n", "")
-
 
     def skip_whitespaces(self):
         whitespaces = len(self.line) - len(self.line.lstrip())
