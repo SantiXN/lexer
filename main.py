@@ -173,12 +173,12 @@ class Lexer:
 
 
 def main():
-    # if len(sys.argv) != 3:
-    #     print("Usage: PascalLexer <input_file> <output_file>")
-    #     return
+    if len(sys.argv) != 3:
+        print("Usage: PascalLexer <input_file> <output_file>")
+        return
 
-    input_file = "input.txt"
-    output_file = "output.txt"
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
 
     lexer = Lexer(input_file)
     with open(output_file, "w", encoding="utf-8") as writer:
