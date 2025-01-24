@@ -80,12 +80,14 @@ class Lexer:
 
             return Token(self.BadToken, lexeme, self.line_number, self.column_number - len(lexeme))
 
-        token_type = lexeme.upper() if KeyWord.is_token(lexeme) else self.IdentifierToken
+        if KeyWord.is_token(lexeme):
+            token_type = lexeme.upper()
+        else:
+            token_type = self.IdentifierToken
         token = Token(token_type, lexeme, self.line_number, self.column_number)
 
         self.line = self.line[len(lexeme):]
         self.column_number += len(lexeme)
-
         self.line = self.line.replace("\n", "")
 
         if self.line and not re.match(r"[ \t\(\)\+\-\*/;,=\[\]{}<>'.:]", self.line[0]) and not re.match(
@@ -101,15 +103,27 @@ class Lexer:
 
     def parse_number_literal(self, match):
         lexeme = match.group()
-        if (("." in lexeme and not match.group(2)) or
-                (lexeme.isdigit() and len(lexeme) > 16)):
+
+        if ('.' in lexeme and match.group(2) == '') or (lexeme.isdigit() and len(lexeme) > 16):
             self.line = self.line[len(lexeme):]
             self.column_number += len(lexeme)
+
             return Token(self.BadToken, lexeme, self.line_number, self.column_number - len(lexeme))
 
-        token_type = self.FloatToken if "." in lexeme or "e" in lexeme.lower() else self.IntegerToken
+        if len(self.line) > len(lexeme) and not re.match(r"[ \t\n\(\)\+\-\*/;,=\[\]{}<>'.:0-9]", self.line[len(lexeme)]):
+            bad_match = re.match(r"^[a-zA-Z0-9_]*", self.line)
+
+            bad_token = Token(self.BadToken, self.line, self.line_number, self.column_number)
+            self.line = self.line[len(bad_match.group()):]
+            self.column_number += len(bad_match.group())
+
+            return bad_token
+
+        token_type = self.FloatToken if '.' in lexeme or 'e' in lexeme.lower() else self.IntegerToken
+
         self.line = self.line[len(lexeme):]
         self.column_number += len(lexeme)
+
         return Token(token_type, lexeme, self.line_number, self.column_number - len(lexeme))
 
     def parse_string_literal(self):
@@ -159,12 +173,12 @@ class Lexer:
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: PascalLexer <input_file> <output_file>")
-        return
+    # if len(sys.argv) != 3:
+    #     print("Usage: PascalLexer <input_file> <output_file>")
+    #     return
 
-    input_file = sys.argv[1]
-    output_file = sys.argv[2]
+    input_file = "input.txt"
+    output_file = "output.txt"
 
     lexer = Lexer(input_file)
     with open(output_file, "w", encoding="utf-8") as writer:
